@@ -227,7 +227,8 @@ public class KPrint {
                 return super.apply(k);
             }
         }.apply(input);
-        K alphaRenamed = new TransformK() {
+        //Does not work properly. Anonymous attribute is incorrectly present on all variables.
+        /*K alphaRenamed = new TransformK() {
             Map<KVariable, KVariable> renames = new HashMap<>();
             int newCount = 0;
 
@@ -238,8 +239,8 @@ public class KPrint {
                 }
                 return k;
             }
-        }.apply(sortedComm);
+        }.apply(sortedComm);*/
         return Formatter.format(
-                new AddBrackets(test).addBrackets(KOREToTreeNodes.apply(KOREToTreeNodes.up(test, alphaRenamed), test)), KPrint.options.color(KPrint.tty.stdout, KPrint.files.getEnv()));
+                new AddBrackets(test).addBrackets(KOREToTreeNodes.apply(KOREToTreeNodes.up(test, sortedComm), test)), KPrint.options.color(KPrint.tty.stdout, KPrint.files.getEnv()));
     }
 }
