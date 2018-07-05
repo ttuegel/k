@@ -5,8 +5,8 @@ import com.google.common.base.Stopwatch;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 import org.apache.commons.lang3.tuple.Pair;
-import org.kframework.RewriterResult;
 import org.kframework.Debugg;
+import org.kframework.RewriterResult;
 import org.kframework.Strategy;
 import org.kframework.attributes.Att;
 import org.kframework.backend.java.builtins.BoolToken;
@@ -26,27 +26,26 @@ import org.kframework.backend.java.kil.Term;
 import org.kframework.backend.java.kil.TermContext;
 import org.kframework.backend.java.kil.Variable;
 import org.kframework.backend.java.strategies.TransitionCompositeStrategy;
+import org.kframework.backend.java.utils.BitSet;
 import org.kframework.builtin.KLabels;
-import org.kframework.builtin.Sorts;
 import org.kframework.kore.FindK;
 import org.kframework.kore.K;
 import org.kframework.kore.KApply;
-import org.kframework.kore.KRewrite;
 import org.kframework.kore.KORE;
 import org.kframework.rewriter.SearchType;
-import org.kframework.backend.java.utils.BitSet;
-
-import static org.kframework.kore.KORE.KRewrite;
 
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
+
+import static org.kframework.kore.KORE.*;
 
 /**
  * @author AndreiS
@@ -592,8 +591,9 @@ public class SymbolicRewriter {
             List<Rule> specRules) {
         List<ConstrainedTerm> proofResults = new ArrayList<>();
         Set<ConstrainedTerm> visited = new HashSet<>();
-        List<ConstrainedTerm> queue = new ArrayList<>();
-        List<ConstrainedTerm> nextQueue = new ArrayList<>();
+        //key is path Id, value is current ConstrainedTerm.
+        Map<String, ConstrainedTerm> terms = new LinkedHashMap<>();
+        Map<String, ConstrainedTerm> nextTerms = new LinkedHashMap<>();
 
         initialTerm = initialTerm.expandPatterns(true);
 
@@ -601,14 +601,15 @@ public class SymbolicRewriter {
         Debugg.log(Debugg.LogEvent.TARGET, targetTerm.term(),  targetTerm.constraint());
 
         visited.add(initialTerm);
-        queue.add(initialTerm);
+        terms.put("1", initialTerm);
         boolean guarded = false;
         int step = 0;
 
-        while (!queue.isEmpty()) {
+        while (!terms.isEmpty()) {
             step++;
-            for (ConstrainedTerm term : queue) {
-                Debugg.log(Debugg.LogEvent.NODE, term.term(), term.constraint());
+            for (String pathId : terms.keySet()) {
+                ConstrainedTerm term = terms.get(pathId);
+                Debugg.log(Debugg.LogEvent.NODE, step, pathId, term.term(), term.constraint());
                 if (term.implies(targetTerm)) {
                     Debugg.log(Debugg.LogEvent.IMPLIESTARGET, term.term(), term.constraint());
                     continue;
@@ -638,7 +639,7 @@ public class SymbolicRewriter {
                     ConstrainedTerm result = applySpecRules(term, specRules);
                     if (result != null) {
                         if (visited.add(result))
-                            nextQueue.add(result);
+                            nextTerms.put(pathId, result);
                         continue;
                     }
                 }
@@ -668,7 +669,9 @@ public class SymbolicRewriter {
                      */
                 }
 
-                for (ConstrainedTerm cterm : results) {
+                for (int i = 0; i < results.size(); i++) {
+                    ConstrainedTerm cterm = results.get(i);
+                    String newPathId = pathId;
                     ConstrainedTerm result = new ConstrainedTerm(
                             cterm.term(),
                             cterm.constraint().removeBindings(
@@ -677,21 +680,22 @@ public class SymbolicRewriter {
                                             initialTerm.variableSet())),
                             cterm.termContext());
                     Debugg.log(Debugg.LogEvent.RSTEP, term.term(), term.constraint(), result.term(), result.constraint());
-                    if(results.size() > 1) {
+                    if (results.size() > 1) {
                         Debugg.log(Debugg.LogEvent.BRANCH, result.term(), result.constraint());
+                        //noinspection StringConcatenationInLoop
+                        newPathId = pathId += (i + 1);
                     }
                     if (visited.add(result)) {
-                        nextQueue.add(result);
+                        nextTerms.put(newPathId, result);
                     }
                 }
             }
 
             /* swap the queues */
-            List<ConstrainedTerm> temp;
-            temp = queue;
-            queue = nextQueue;
-            nextQueue = temp;
-            nextQueue.clear();
+            Map<String, ConstrainedTerm> temp = terms;
+            terms = nextTerms;
+            nextTerms = temp;
+            nextTerms.clear();
             guarded = true;
         }
 

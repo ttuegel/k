@@ -83,11 +83,15 @@ public class Debugg {
         Debugg.sessionLog.flush();
     }
 
-    public static void log(LogEvent logCode, K... terms) {
+    public static void log(LogEvent logCode, Object... items) {
         if (! Debugg.loggingOn) return;
         ArrayList<String> nodeIds = new ArrayList<String>();
-        for (K term: terms) {
-            nodeIds.add(writeNode(term));
+        for (Object item: items) {
+            if (item instanceof K) {
+                nodeIds.add(writeNode((K) item));
+            } else {
+                nodeIds.add(item.toString());
+            }
         }
         String nodeId = String.join("_", nodeIds);
         String logPrefix = "";
