@@ -20,25 +20,10 @@ public class PrintOptions {
     }
 
     @Parameter(names = "--color", description = "Use colors in output. Default is on.", converter=ColorModeConverter.class)
-    private ColorSetting color;
+    public ColorSetting color;
 
     public ColorSetting color(boolean ttyStdout, Map<String, String> env) {
-        boolean colorize = outputFile == null && ttyStdout;
-        ColorSetting colors = color;
-        if (colors == null) {
-            try {
-                if (!colorize) {
-                    colors = ColorSetting.OFF;
-                } else if (Integer.parseInt(env.get("K_COLOR_SUPPORT")) >= 256) {
-                    colors = ColorSetting.EXTENDED;
-                } else {
-                    colors = ColorSetting.ON;
-                }
-            } catch (NumberFormatException e) {
-                colors = ColorSetting.ON;
-            }
-        }
-        return colors;
+        return color.color(ttyStdout, outputFile, env);
     }
 
     public static class ColorModeConverter extends BaseEnumConverter<ColorSetting> {
