@@ -24,7 +24,7 @@ public class PrintOptions {
     }
 
     @Parameter(names = "--color", description = "Use colors in output. Default is on.", converter=ColorModeConverter.class)
-    public ColorSetting color;
+    public ColorSetting color = ColorSetting.OFF;
 
     public ColorSetting color(boolean ttyStdout, Map<String, String> env) {
         return color.color(ttyStdout, outputFile, env);
