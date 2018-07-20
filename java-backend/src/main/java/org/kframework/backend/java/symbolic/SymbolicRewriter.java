@@ -32,7 +32,6 @@ import org.kframework.kore.FindK;
 import org.kframework.kore.K;
 import org.kframework.kore.KApply;
 import org.kframework.kore.KORE;
-import org.kframework.kprove.KProve;
 import org.kframework.main.GlobalOptions;
 import org.kframework.main.Main;
 import org.kframework.rewriter.SearchType;
@@ -601,6 +600,7 @@ public class SymbolicRewriter {
             ConstrainedTerm targetTerm,
             List<Rule> specRules, KExceptionManager kem) {
         List<ConstrainedTerm> proofResults = new ArrayList<>();
+        int successPaths = 0;
         Set<ConstrainedTerm> visited = new HashSet<>();
         List<ConstrainedTerm> queue = new ArrayList<>();
         List<ConstrainedTerm> nextQueue = new ArrayList<>();
@@ -661,6 +661,7 @@ public class SymbolicRewriter {
                         System.out.println("\n============\nStep " + step + ": eliminated!\n============\n");
                         logStep(step, v, targetCallDataStr, term, true);
                     }
+                    successPaths++;
                     continue;
                 } else {
                     logStep(step, v, targetCallDataStr, term, step == 1 && globalOptions.logBasic);
@@ -812,8 +813,6 @@ public class SymbolicRewriter {
 
             globalOptions.log = oldLogEnabled;
         }
-        System.out.format("Prove steps: %d\n", step);
-        System.out.format("\n=====\nTOTAL TIME: %.3f s\n=====\n\n", (System.currentTimeMillis() - Main.startTime) / 1000.);
 
         for (ConstrainedTerm term : proofResults) {
             if (globalOptions.fast) {
@@ -827,13 +826,18 @@ public class SymbolicRewriter {
             System.out.println(term.constraint().toString().replaceAll("#And", "\n#And"));
             System.out.println();
         }
+
         if (proofResults.isEmpty()) {
-            System.out.format("=================\nSPEC PROVED: %s %s\n=================\n\n",
-                    new File(rule.getSource().source()), rule.getLocation());
+            System.out.format("\n==================================\nSPEC PROVED: %s %s\nExecution paths: %d\n",
+                    new File(rule.getSource().source()), rule.getLocation(), successPaths);
         } else {
-            System.out.format("\n=================\nSPEC FAILURE: %s %s\n%d results\n=================\n\n",
-                    new File(rule.getSource().source()), rule.getLocation(), proofResults.size());
+            System.out.format("\n==================================\nSPEC FAILED: %s %s\n" +
+                            "Success execution paths: %d\nFailed execution paths: %d\n",
+                    new File(rule.getSource().source()), rule.getLocation(), successPaths, proofResults.size());
         }
+        System.out.format("Longest path: %d steps\n", step);
+        System.out.format("Time so far: %.3f s\n==================================\n\n",
+                (System.currentTimeMillis() - Main.startTime) / 1000.);
         return proofResults;
     }
 

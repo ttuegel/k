@@ -26,6 +26,7 @@ import org.kframework.kore.KApply;
 import org.kframework.krun.KRunOptions;
 import org.kframework.krun.api.io.FileSystem;
 import org.kframework.main.GlobalOptions;
+import org.kframework.main.Main;
 import org.kframework.rewriter.Rewriter;
 import org.kframework.rewriter.SearchType;
 import org.kframework.utils.Stopwatch;
@@ -206,6 +207,11 @@ public class InitializeRewriter implements Function<Module, Rewriter> {
 
             SymbolicRewriter rewriter = new SymbolicRewriter(rewritingContext, transitions, converter);
 
+            //todo kompileOptions.global == null, but shouldn't
+            if (rewritingContext.globalOptions.verbose) {
+                System.out.format("\nInitialization finished: %.3f s \n==================================\n",
+                        (System.currentTimeMillis() - Main.startTime) / 1000.);
+            }
             List<ConstrainedTerm> proofResults = javaRules.stream()
                     .filter(r -> !r.att().contains(Attribute.TRUSTED_KEY))
                     .map(r -> {
