@@ -79,44 +79,21 @@ public class ModuleToKORE {
         sb.append(prelude);
         Map<String, Boolean> attributes = new HashMap<>();
         sb.append("\n");
-        if (ATTRIBUTES) {
-            sb.append("module ATTRIBUTES\n\n  sort Attribute{} []\n");
-            for (Sort sort : iterable(module.definedSorts())) {
-                Att att = module.sortAttributesFor().get(sort).getOrElse(() -> KORE.Att());
-                collectAttributes(attributes, att);
-            }
-            for (Production prod : iterable(module.productions())) {
-                Att att = prod.att();
-                collectAttributes(attributes, att);
-            }
-            for (Rule r : iterable(module.rules())) {
-                Att att = r.att();
-                collectAttributes(attributes, att);
-            }
-            for (Map.Entry<String, Boolean> entry : attributes.entrySet()) {
-                if (entry.getValue()) {
-                    sb.append("  sort Att");
-                    convert(entry.getKey());
-                    sb.append("{} []\n");
-                    sb.append("  symbol ");
-                    convert(entry.getKey());
-                    sb.append("{}(Att");
-                    convert(entry.getKey());
-                    sb.append("{}):Attribute{}[]\n");
-                } else {
-                    sb.append("  symbol ");
-                    convert(entry.getKey());
-                    sb.append("{}():Attribute{}[]\n");
-                }
-            }
-            sb.append("endmodule []\n\n");
+        for (Sort sort : iterable(module.definedSorts())) {
+            Att att = module.sortAttributesFor().get(sort).getOrElse(() -> KORE.Att());
+            collectAttributes(attributes, att);
+        }
+        for (Production prod : iterable(module.productions())) {
+            Att att = prod.att();
+            collectAttributes(attributes, att);
+        }
+        for (Rule r : iterable(module.rules())) {
+            Att att = r.att();
+            collectAttributes(attributes, att);
         }
         sb.append("module ");
         convert(module.name());
         sb.append("\n\n// imports\n");
-        if (ATTRIBUTES) {
-            sb.append("  import ATTRIBUTES []\n");
-        }
         sb.append("  import K []\n\n// sorts\n");
         Set<String> dummyHookedSorts = new HashSet<>();
         dummyHookedSorts.add("SET.Set");
@@ -222,7 +199,7 @@ public class ModuleToKORE {
                 convert(prod.sort(), prod);
                 sb.append(",K3:");
                 convert(prod.sort(), prod);
-                sb.append("))) [] // associativity\n");
+                sb.append("))) [#key{}(\"ass9c\")] // associativity\n");
             }
             if (prod.att().contains(Attribute.COMMUTATIVE_KEY)) {
                 // s(K1, K2) = s(K2, K1)
@@ -249,7 +226,7 @@ public class ModuleToKORE {
                 convert(childSort, prod);
                 sb.append(",K1:");
                 convert(childSort, prod);
-                sb.append(")) [] // commutativity\n");
+                sb.append(")) [#key{}(\"comm\")] // commutativity\n");
             }
             if (prod.att().contains(Attribute.IDEMPOTENT_KEY)) {
                 // s(K, K) = K
@@ -271,7 +248,7 @@ public class ModuleToKORE {
                 convert(prod.sort(), prod);
                 sb.append("),K:");
                 convert(prod.sort(), prod);
-                sb.append(") [] // idempotency\n");
+                sb.append(") [#key{}(\"idem\")] // idempotency\n");
             }
             if (isFunction(prod) && prod.att().contains(Attribute.UNIT_KEY)) {
                 // s(K, unit) = K
@@ -295,7 +272,7 @@ public class ModuleToKORE {
                 convert(unit, false);
                 sb.append("()),K:");
                 convert(prod.sort(), prod);
-                sb.append(") [] // right unit\n");
+                sb.append(") [#key{}(\"unit\")] // right unit\n");
 
                 sb.append("  axiom");
                 convertParams(prod.klabel().get(), true);
@@ -309,7 +286,7 @@ public class ModuleToKORE {
                 convert(prod.sort(), prod);
                 sb.append("),K:");
                 convert(prod.sort(), prod);
-                sb.append(") [] // left unit\n");
+                sb.append(") [#key{}(\"unit\")] // left unit\n");
             }
             if (isFunctional(prod, functionRules, impurities)) {
                 // exists y . f(...) = y
@@ -332,7 +309,7 @@ public class ModuleToKORE {
                     convert(prod.nonterminal(i).sort(), prod);
                     conn = ", ";
                 }
-                sb.append("))) [] // functional\n");
+                sb.append("))) [#key{}(\"functional\")] // functional\n");
             }
             if (isConstructor(prod, functionRules, impurities)) {
                 // c(x1,x2,...) /\ c(y1,y2,...) -> c(x1/\y2,x2/\y2,...)
@@ -378,7 +355,7 @@ public class ModuleToKORE {
                         sb.append(")");
                         conn = ", ";
                     }
-                    sb.append(")) [] // no confusion same constructor\n");
+                    sb.append(")) [#key{}(\"constructor\")] // no confusion same constructor\n");
                 }
                 for (Production prod2 : iterable(module.productionsForSort().apply(prod.sort()))) {
                     // !(cx(x1,x2,...) /\ cy(y1,y2,...))
@@ -414,7 +391,7 @@ public class ModuleToKORE {
                         convert(prod2.nonterminal(i).sort(), prod2);
                         conn = ", ";
                     }
-                    sb.append("))) [] // no confusion different constructors\n");
+                    sb.append("))) [#key{}(\"constructor\")] // no confusion different constructors\n");
 
                 }
             }
@@ -489,7 +466,7 @@ public class ModuleToKORE {
             for (int i = 0; i < numTerms; i++) {
                 sb.append(")");
             }
-            sb.append(" [] // no junk");
+            sb.append(" [#key{}(\"constructor\")] // no junk");
             if (hasToken && !METAVAR) {
                 sb.append(" (TODO: fix bug with \\dv)");
             }
@@ -965,25 +942,25 @@ public class ModuleToKORE {
 
     private void convert(Map<String, Boolean> attributes, Att att) {
         sb.append("[");
-        if (ATTRIBUTES) {
-            String conn = "";
-            for (Tuple2<Tuple2<String, Class<?>>, ?> attribute : iterable(att.att())) {
-                String name = attribute._1._1;
-                Class<?> cls = attribute._1._2;
-                Object val = attribute._2;
-                String strVal = val.toString();
-                sb.append(conn);
-                if (attributes.get(name) != null && attributes.get(name)) {
-                    sb.append(name).append("{}(\\dv{Att");
-                    convert(name);
-                    sb.append("{}}(");
-                    sb.append(StringUtil.enquoteCString(strVal));
-                    sb.append("))");
-                } else {
-                    sb.append(name).append("{}()");
-                }
-                conn = ", ";
+        String conn = "";
+        for (Tuple2<Tuple2<String, Class<?>>, ?> attribute : iterable(att.att())) {
+            String name = attribute._1._1;
+            Class<?> cls = attribute._1._2;
+            Object val = attribute._2;
+            String strVal = val.toString();
+            sb.append(conn);
+            if (attributes.get(name) != null && attributes.get(name)) {
+                sb.append("#keyVal{}(");
+                sb.append(StringUtil.enquoteCString(name));
+                sb.append(",");
+                sb.append(StringUtil.enquoteCString(strVal));
+                sb.append(")");
+            } else {
+                sb.append("#key{}(");
+                sb.append(StringUtil.enquoteCString(name));
+                sb.append(")");
             }
+            conn = ", ";
         }
         sb.append("]");
     }
