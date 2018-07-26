@@ -2,7 +2,11 @@
 package org.kframework.backend.java.util;
 
 import com.google.common.collect.ImmutableSet;
-import org.kframework.backend.java.z3.*;
+import org.kframework.backend.java.z3.Z3Context;
+import org.kframework.backend.java.z3.Z3Exception;
+import org.kframework.backend.java.z3.Z3Params;
+import org.kframework.backend.java.z3.Z3Solver;
+import org.kframework.backend.java.z3.Z3Status;
 import org.kframework.main.GlobalOptions;
 import org.kframework.utils.OS;
 import org.kframework.utils.errorsystem.KEMException;
@@ -10,7 +14,10 @@ import org.kframework.utils.errorsystem.KExceptionManager;
 import org.kframework.utils.file.FileUtil;
 import org.kframework.utils.options.SMTOptions;
 
-import java.io.*;
+import java.io.BufferedReader;
+import java.io.IOException;
+import java.io.InputStreamReader;
+import java.io.PrintWriter;
 import java.util.Set;
 
 /**
@@ -44,9 +51,9 @@ public class Z3Wrapper {
         CHECK_SAT = options.z3Tactic == null ? "(check-sat)" : "(check-sat-using " + options.z3Tactic + ")";
     }
 
-    public synchronized boolean isUnsat(CharSequence query, int timeout) {
+    public synchronized boolean isUnsat(CharSequence query, int timeout, Z3Profiler timer) {
         if (options.z3Executable) {
-            return checkQueryWithExternalProcess(query, timeout);
+            return checkQueryWithExternalProcess(query, timeout, timer);
         } else {
             return checkQueryWithLibrary(query, timeout);
         }
@@ -74,8 +81,9 @@ public class Z3Wrapper {
     /**
      * @return true if query result is unsat, false otherwise.
      */
-    private boolean checkQueryWithExternalProcess(CharSequence query, int timeout) {
+    private boolean checkQueryWithExternalProcess(CharSequence query, int timeout, Z3Profiler profiler) {
         String result = "";
+        profiler.startQuery();
         try {
             for (int i = 0; i < Z3_RESTART_LIMIT; i++) {
                 ProcessBuilder pb = files.getProcessBuilder().command(
@@ -85,7 +93,7 @@ public class Z3Wrapper {
                         "-t:" + timeout);
                 pb.redirectInput(ProcessBuilder.Redirect.PIPE);
                 pb.redirectOutput(ProcessBuilder.Redirect.PIPE);
-                long startTime = System.currentTimeMillis();
+                profiler.startRun();
                 Process z3Process = pb.start();
                 PrintWriter input = new PrintWriter(z3Process.getOutputStream());
                 BufferedReader output = new BufferedReader(new InputStreamReader(z3Process.getInputStream()));
@@ -102,16 +110,17 @@ public class Z3Wrapper {
                     result = line;
                 }
                 z3Process.destroy();
-                long duration = System.currentTimeMillis() - startTime;
-                if (duration >= timeout && (globalOptions.logStmtsOnly || globalOptions.log)) {
-                    System.out.println("\nz3 likely timeout\n");
-                }
+                profiler.endRun(timeout);
                 if (result != null) {
                     break;
                 }
             }
         } catch (IOException e) {
             e.printStackTrace();
+        } finally {
+            if (globalOptions.verbose && profiler.isLastRunTimeout()) {
+                System.out.println("\nz3 likely timeout\n");
+            }
         }
         if (!Z3_QUERY_RESULTS.contains(result)) {
             throw KEMException.criticalError("Z3 crashed on input query:\n" + query + "\nresult:\n" + result);

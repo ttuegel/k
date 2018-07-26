@@ -65,10 +65,6 @@ public class KProve {
         options.global.logBasic |= options.global.logStmtsOnly;
         options.global.verbose |= options.global.logBasic;
         options.global.debug |= options.global.debugFull;
-        if (options.global.verbose) {
-            System.out.format("\nParsing finished: %.3f s \n==================================\n",
-                    (System.currentTimeMillis() - Main.startTime) / 1000.);
-        }
         K results = rewriter.prove(specModule);
         int exit;
         if (results instanceof KApply) {

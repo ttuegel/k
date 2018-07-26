@@ -26,6 +26,7 @@ import org.kframework.backend.java.kil.Term;
 import org.kframework.backend.java.kil.TermContext;
 import org.kframework.backend.java.kil.Variable;
 import org.kframework.backend.java.strategies.TransitionCompositeStrategy;
+import org.kframework.backend.java.util.Profiler2;
 import org.kframework.backend.java.utils.BitSet;
 import org.kframework.builtin.KLabels;
 import org.kframework.kore.FindK;
@@ -612,8 +613,8 @@ public class SymbolicRewriter {
         queue.add(initialTerm);
         boolean guarded = false;
         int step = 0;
+        //to avoid printing initialization-phase rules
         globalOptions.logRulesPublic = globalOptions.logRules;
-        globalOptions.logBasic |= globalOptions.logStmtsOnly | globalOptions.log;
 
         if (globalOptions.log) {
             System.out.println("\nTarget term\n=====================\n");
@@ -821,24 +822,30 @@ public class SymbolicRewriter {
             System.out.println();
         }
 
+        if (globalOptions.verbose) {
+            printSummaryBox(rule, proofResults, successPaths, step);
+        }
+        return proofResults;
+    }
+
+    private void printSummaryBox(Rule rule, List<ConstrainedTerm> proofResults, int successPaths, int step) {
         if (proofResults.isEmpty()) {
-            System.out.format("\n==================================\nSPEC PROVED: %s %s\nExecution paths: %d\n",
+            System.err.format("\nSPEC PROVED: %s %s\n==================================\nExecution paths: %d\n",
                     new File(rule.getSource().source()), rule.getLocation(), successPaths);
         } else {
-            System.out.format("\n==================================\nSPEC FAILED: %s %s\n" +
+            System.err.format("\nSPEC FAILED: %s %s\n==================================\n" +
                             "Success execution paths: %d\nFailed execution paths: %d\n",
                     new File(rule.getSource().source()), rule.getLocation(), successPaths, proofResults.size());
         }
-        System.out.format("Longest path: %d steps\n", step);
-        System.out.format("Time so far: %.3f s\n==================================\n\n",
-                (System.currentTimeMillis() - Main.startTime) / 1000.);
-        return proofResults;
+        System.err.format("Longest path: %d steps\n", step);
+        Profiler2.printResult();
     }
 
     private void logStep(int step, int v, KItem targetCallData, ConstrainedTerm term, boolean forced) {
         if (!globalOptions.logBasic) {
             return;
         }
+        Profiler2.logOverheadTimer.start();
         KItem top = (KItem) term.term();
         KItem k = getCell(top, "<k>");
         Term kContent = k != null ? ((KList) k.klist()).get(0) : null;
@@ -912,6 +919,7 @@ public class SymbolicRewriter {
             //KProve.prettyPrint(term.constraint());
             System.out.println(term.constraint().toString().replaceAll("#And", "\n#And"));
         }
+        Profiler2.logOverheadTimer.stop();
         if (localMem != null && !(localMemMap instanceof BuiltinMap || localMemMap instanceof Variable)) {
             throw new RuntimeException("<localMem> non-map format, aborting.");
         }
