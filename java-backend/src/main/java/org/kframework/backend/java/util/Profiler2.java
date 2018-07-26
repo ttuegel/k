@@ -16,6 +16,9 @@ public class Profiler2 {
     public static final Z3Profiler z3Implication = new Z3Profiler("Z3 implication");
     public static final Z3Profiler z3Constraint = new Z3Profiler("Z3 constraint");
 
+    public static int countResFuncTopUncached = 0;
+    public static int countResFuncRecursiveUncached = 0;
+
     public static void printResult() {
         long currentTimestamp = System.currentTimeMillis();
         System.err.format("Total time:            %.3f\n", (currentTimestamp - Main.startTime) / 1000.);
@@ -30,7 +33,10 @@ public class Profiler2 {
         System.err.format("  resolveFunction time: %s\n", resFuncNanoTimer);
         System.err.format("  log time:             %s\n\n", logOverheadTimer);
 
-        System.err.format("resolveFunction top-level calls:   %d\n", resFuncNanoTimer.getCount());
+        System.err.format("resolveFunction top-level uncached: %d\n", countResFuncTopUncached);
+        System.err.format("resolveFunction top-level cached:   %d\n",
+                resFuncNanoTimer.getCount() - countResFuncTopUncached);
+        System.err.format("resolveFunction recursive uncached: %d\n", countResFuncRecursiveUncached);
 
         //Has some overhead. Enable from class Profiler if needed, by setting value below to true.
         if (Profiler.enableProfilingMode.get()) {
